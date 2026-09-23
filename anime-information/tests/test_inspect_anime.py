@@ -91,7 +91,19 @@ class InspectAnimeTests(unittest.TestCase):
         self.assertNotEqual(first["inode"], copied["inode"])
 
     def test_opaque_names_round_trip_through_json(self) -> None:
+        if os.name == "nt":
+            self.skipTest('Windows filenames cannot contain double quotes or newlines')
         filename = "[Group] (A) 'single' \"double\" & $HOME ! `tick` - 空格\nnewline.mkv"
+        self.touch(filename)
+
+        result = self.scan_without_optional_parser()
+        decoded = json.loads(json.dumps(result, ensure_ascii=False))
+        files = self.by_path(decoded)
+        self.assertIn(filename, files)
+        self.assertEqual(files[filename]["type"], "video")
+
+    def test_cross_platform_shell_metacharacters_round_trip(self) -> None:
+        filename = "[Group] (A) 'single' & $HOME ! `tick` - 空格.mkv"
         self.touch(filename)
 
         result = self.scan_without_optional_parser()
@@ -137,7 +149,10 @@ class InspectAnimeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as external:
             outside = Path(external)
             (outside / "not-scanned.mkv").write_bytes(b"outside")
-            (self.root / "linked-directory").symlink_to(outside, target_is_directory=True)
+            try:
+                (self.root / "linked-directory").symlink_to(outside, target_is_directory=True)
+            except (NotImplementedError, OSError) as error:
+                self.skipTest(f"directory symlinks unavailable: {error}")
 
             files = self.by_path(self.scan_without_optional_parser())
 
