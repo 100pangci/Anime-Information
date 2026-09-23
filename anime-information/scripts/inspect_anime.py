@@ -31,36 +31,58 @@ ARCHIVE_EXTENSIONS = {
     ".7z", ".bz2", ".cb7", ".cbr", ".cbz", ".gz", ".lz", ".rar",
     ".tar", ".xz", ".zip",
 }
-DISC_EXTENSIONS = {".bin", ".cue", ".dvd", ".iso", ".mdf", ".nrg"}
+DISC_EXTENSIONS = {".cue", ".dvd", ".iso", ".mdf", ".nrg"}
 
-EXTRA_TOKEN = re.compile(
-    r"(?i)(?<![a-z0-9])(?:ncop|nced|ova|oad|pv|cm|cd)(?:\s*\d+)?(?![a-z0-9])|"
-    r"(?<![a-z0-9])(?:extras?|movie|bonus|interview|menu|ost|soundtrack|"
-    r"scans?)(?![a-z0-9])"
+EXTRA_HINTS = (
+    ("ncop", re.compile(r"(?i)(?<![a-z0-9])ncop(?:\s*\d+)?(?![a-z0-9])")),
+    ("nced", re.compile(r"(?i)(?<![a-z0-9])nced(?:\s*\d+)?(?![a-z0-9])")),
+    ("ova", re.compile(r"(?i)(?<![a-z0-9])ova(?:\s*\d+)?(?![a-z0-9])")),
+    ("oad", re.compile(r"(?i)(?<![a-z0-9])oad(?:\s*\d+)?(?![a-z0-9])")),
+    ("movie", re.compile(r"(?i)(?<![a-z0-9])movie(?![a-z0-9])")),
+    ("sp", re.compile(r"(?i)(?<![a-z0-9])sp\s*\d*(?![a-z0-9])")),
+    ("pv", re.compile(r"(?i)(?<![a-z0-9])pv(?:\s*\d+)?(?![a-z0-9])")),
+    ("cm", re.compile(r"(?i)(?<![a-z0-9])cm(?:\s*\d+)?(?![a-z0-9])")),
+    ("ost", re.compile(r"(?i)(?<![a-z0-9])(?:ost|soundtrack)(?![a-z0-9])")),
+    ("cd", re.compile(r"(?i)(?<![a-z0-9])cd\s*\d*(?![a-z0-9])")),
+    ("bonus", re.compile(r"(?i)(?<![a-z0-9])bonus(?![a-z0-9])")),
+    ("interview", re.compile(r"(?i)(?<![a-z0-9])interview(?![a-z0-9])")),
+    ("menu", re.compile(r"(?i)(?<![a-z0-9])menu(?![a-z0-9])")),
 )
-SPECIAL_TOKEN = re.compile(r"(?i)(?<![a-z0-9])(?:sp\s*\d*|special)(?![a-z0-9])")
-LANGUAGE_SUFFIX = re.compile(
-    r"(?i)(?:[._\s-]+|\[)(chs|cht|sc|tc|zh[-_]?(?:hans|hant|cn|tw)|"
-    r"jpn?|en|eng)(?:\])?$"
-)
-LANGUAGE_NAMES = {
-    "chs": "zh-Hans",
-    "sc": "zh-Hans",
-    "zh-hans": "zh-Hans",
-    "zh_hans": "zh-Hans",
-    "zh-cn": "zh-Hans",
-    "zh_cn": "zh-Hans",
-    "cht": "zh-Hant",
-    "tc": "zh-Hant",
-    "zh-hant": "zh-Hant",
-    "zh_hant": "zh-Hant",
-    "zh-tw": "zh-Hant",
-    "zh_tw": "zh-Hant",
-    "jp": "ja",
-    "jpn": "ja",
-    "en": "en",
-    "eng": "en",
+GENERIC_EXTRA_TOKEN = re.compile(r"(?i)(?<![a-z0-9])extras?(?![a-z0-9])")
+LANGUAGE_ALIASES: dict[str, tuple[str, ...]] = {
+    "chs": ("zh-Hans",),
+    "sc": ("zh-Hans",),
+    "gb": ("zh-Hans",),
+    "简": ("zh-Hans",),
+    "zh-hans": ("zh-Hans",),
+    "zh_hans": ("zh-Hans",),
+    "zh-cn": ("zh-Hans",),
+    "zh_cn": ("zh-Hans",),
+    "cht": ("zh-Hant",),
+    "tc": ("zh-Hant",),
+    "big5": ("zh-Hant",),
+    "繁": ("zh-Hant",),
+    "zh-hant": ("zh-Hant",),
+    "zh_hant": ("zh-Hant",),
+    "zh-tw": ("zh-Hant",),
+    "zh_tw": ("zh-Hant",),
+    "jp": ("ja",),
+    "jpn": ("ja",),
+    "en": ("en",),
+    "eng": ("en",),
+    "简日": ("zh-Hans", "ja"),
+    "繁日": ("zh-Hant", "ja"),
+    "chs&jpn": ("zh-Hans", "ja"),
+    "cht&jpn": ("zh-Hant", "ja"),
+    "jpsc": ("ja", "zh-Hans"),
+    "jptc": ("ja", "zh-Hant"),
+    "chs_jp": ("zh-Hans", "ja"),
 }
+LANGUAGE_SUFFIX = re.compile(
+    r"(?i)(?:[._\s-]+|\[)("
+    + "|".join(re.escape(alias) for alias in sorted(LANGUAGE_ALIASES, key=len, reverse=True))
+    + r")(?:\])?$"
+)
 
 
 def classify_extension(extension: str) -> str:
@@ -81,19 +103,22 @@ def classify_extension(extension: str) -> str:
     return "unknown"
 
 
-def subtitle_details(stem: str, relative_path: Path) -> dict[str, str | None]:
+def subtitle_details(stem: str, relative_path: Path) -> dict[str, Any]:
     match = LANGUAGE_SUFFIX.search(stem)
-    language_tag: str | None = None
+    raw_language_tag: str | None = None
+    language_tags: tuple[str, ...] = ()
     base_stem = stem
     if match:
-        raw_tag = match.group(1).replace("_", "-").casefold()
-        language_tag = LANGUAGE_NAMES.get(raw_tag)
+        raw_language_tag = match.group(1)
+        language_tags = LANGUAGE_ALIASES.get(raw_language_tag.casefold(), ())
         base_stem = stem[: match.start()].rstrip("._ -[")
 
     parent = relative_path.parent.as_posix()
     match_key = f"{parent}/{base_stem}" if parent != "." else base_stem
     return {
-        "language_tag": language_tag,
+        "raw_language_tag": raw_language_tag,
+        "language_tags": list(language_tags),
+        "language_tag": language_tags[0] if len(language_tags) == 1 else None,
         "match_key": match_key.casefold(),
     }
 
@@ -134,6 +159,7 @@ def parse_filename(stem: str) -> dict[str, Any]:
         r"(?i)(?<![a-z0-9])EP\s*\d{1,3}(?:\.\d+)?(?:v\d+)?(?![a-z0-9])",
         r"(?<!\d)\[\s*(\d{1,3}(?:\.\d+)?(?:v\d+)?)\s*\]",
         r"(?<![\w])[-–]\s*(\d{1,3}(?:\.\d+)?(?:v\d+)?)(?=\s|\[|\(|$)",
+        r"(?i)^(\d{1,3}(?:\.\d+)?(?:v\d+)?)$",
     )
     for pattern in episode_patterns:
         match = re.search(pattern, stem)
@@ -151,25 +177,32 @@ def parse_filename(stem: str) -> dict[str, Any]:
     }
 
 
-def classify_role(kind: str, relative_path: Path, parsed: dict[str, Any]) -> str:
+def classify_role(
+    kind: str, relative_path: Path, parsed: dict[str, Any]
+) -> tuple[str, str | None]:
+    if kind in {"special", "symlink"}:
+        return "unknown", None
     path_text = "/".join(relative_path.parts)
     if kind == "font" or any(part.casefold() == "fonts" for part in relative_path.parts):
-        return "font"
+        return "font", "font"
     if any(part.casefold() in {"scans", "scan", "booklet"} for part in relative_path.parts):
-        return "scan"
-    if EXTRA_TOKEN.search(path_text) or SPECIAL_TOKEN.search(path_text):
-        return "extra"
-    if kind in {"video", "subtitle", "audio"} and parsed.get("episode"):
-        return "episode-candidate"
-    return "unknown"
+        return "scan", "scan"
+    for hint, pattern in EXTRA_HINTS:
+        if pattern.search(path_text):
+            return "extra", hint
+    if GENERIC_EXTRA_TOKEN.search(path_text):
+        return "extra", "extra"
+    if kind in {"video", "subtitle"} and parsed.get("episode"):
+        return "episode-candidate", None
+    return "unknown", None
 
 
 def walk_entries(
     root: Path,
     errors: list[dict[str, Any]],
     skipped: list[dict[str, str]],
-) -> Iterator[tuple[Path, bool]]:
-    """Yield files and symlinks without following symlinks or descending mounts."""
+) -> Iterator[tuple[Path, str]]:
+    """Yield filesystem entries without following symlinks or descending mounts."""
     root_device = root.stat().st_dev
     pending = [root]
     while pending:
@@ -192,14 +225,16 @@ def walk_entries(
             path = Path(entry.path)
             try:
                 if entry.is_symlink():
-                    yield path, True
+                    yield path, "symlink"
                 elif entry.is_dir(follow_symlinks=False):
                     if entry.stat(follow_symlinks=False).st_dev == root_device:
                         subdirectories.append(path)
                     else:
                         skipped.append({"path": str(path), "reason": "mount-boundary"})
                 elif entry.is_file(follow_symlinks=False):
-                    yield path, False
+                    yield path, "file"
+                else:
+                    yield path, "special"
             except OSError as error:
                 errors.append(
                     {
@@ -215,10 +250,11 @@ def inspect(root: Path) -> dict[str, Any]:
     errors: list[dict[str, Any]] = []
     skipped: list[dict[str, str]] = []
     files: list[dict[str, Any]] = []
-    for path, is_symlink in walk_entries(root, errors, skipped):
+    for path, entry_kind in walk_entries(root, errors, skipped):
         relative_path = path.relative_to(root)
         extension = path.suffix.casefold()
-        kind = "symlink" if is_symlink else classify_extension(extension)
+        kind = entry_kind if entry_kind != "file" else classify_extension(extension)
+        is_symlink = entry_kind == "symlink"
         try:
             details = path.lstat()
             size: int | None = details.st_size if stat.S_ISREG(details.st_mode) else None
@@ -235,12 +271,12 @@ def inspect(root: Path) -> dict[str, Any]:
         stem = path.name[: -len(path.suffix)] if path.suffix else path.name
         subtitle = subtitle_details(stem, relative_path) if kind == "subtitle" else None
         parse_stem = stem
-        if subtitle and subtitle["language_tag"]:
+        if subtitle and subtitle["raw_language_tag"]:
             match = LANGUAGE_SUFFIX.search(stem)
             if match:
                 parse_stem = stem[: match.start()].rstrip("._ -[")
         parsed = parse_filename(parse_stem) if kind in {"video", "subtitle", "audio"} else None
-        role = classify_role(kind, relative_path, parsed or {})
+        role, role_hint = classify_role(kind, relative_path, parsed or {})
 
         item: dict[str, Any] = {
             "path": str(path),
@@ -250,6 +286,7 @@ def inspect(root: Path) -> dict[str, Any]:
             "size": size,
             "is_symlink": is_symlink,
             "role": role,
+            "role_hint": role_hint,
             "parsed": parsed,
         }
         if subtitle is not None:

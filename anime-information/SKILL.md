@@ -17,7 +17,7 @@ description: Safely inspect, identify, classify, and organize local anime files.
 - 先读取用户已有的目录和命名习惯；若目标目录中已有稳定结构，默认保留。
 - 可运行 `python3 <skill目录>/scripts/inspect_anime.py <目标目录>` 获取 JSON 清单。脚本只读；也可用 `find`、`file` 等系统工具补充。保留原始相对路径和目录层级。
 - 按 `references/naming.md`、`episodes.md`、`subtitles.md`、`extras.md` 的规则识别视频、字幕、字体、图片/扫图、音频/OST、压缩包、光盘镜像、PV、特典和字幕组附带文件。扩展名只是线索；对可疑内容用 `file` 或其他只读工具核验。
-- 不要忽略隐藏项、符号链接、损坏文件或未知文件；标记出来。扫描符号链接时不沿链接扩展到目标树。
+- 不要忽略隐藏项、符号链接、损坏文件、未知扩展名或特殊文件（如 FIFO/socket）；标记出来。扫描符号链接时不沿链接扩展到目标树。
 
 ### 2. Inspect：检查媒体属性
 
@@ -39,7 +39,7 @@ description: Safely inspect, identify, classify, and organize local anime files.
 
 ### 5. Classify：区分正片、字幕与附属内容
 
-- 为每项区分媒体类型、作品/集数、版本、语言和内容角色（Episode、Special、OVA/OAD、Movie、Extra、Font、Scan、OST、Unknown 等）。参照 `references/episodes.md` 和 `references/extras.md`。
+- 为每项区分媒体类型、作品/集数、版本、语言和内容角色（Episode、Special、OVA/OAD、Movie、Extra、Font、Scan、OST、Unknown 等）。脚本的 `role_hint`（如 `nced`、`movie`、`sp`）是保留细节的线索，不是最终分类结论；参照 `references/episodes.md` 和 `references/extras.md`。
 - 将外挂字幕与视频逐集配对。优先比较同目录、去除语言后缀的文件名、集数、发布组和版本；必要时查看字幕文本/轨道信息。详细规则见 `references/subtitles.md`。
 - 一个字幕可能适用于多个版本，但不能仅因为集数相同就复用或改名。把不确定、孤立或多对一的字幕配对标记为 `Needs Review`。
 - 对 WebRip、BluRay、BDRip、v2 和不同发布组的版本允许共存；按 `references/metadata.md` 处理版本选择与元数据不确定性。
