@@ -1,3 +1,4 @@
+import json
 import os
 import socket
 import sys
@@ -54,7 +55,7 @@ class InspectAnimeTests(unittest.TestCase):
                 self.assertEqual(files[filename]["role_hint"], role_hint)
 
     def test_subtitle_formats_languages_and_companion_keys(self) -> None:
-        for filename in ("01.chs.ass", "01.cht.ass", "01.sub", "01.idx"):
+        for filename in ("01.chs.ass", "01.cht.ass", "01.sub", "01.idx", "01.sup"):
             self.touch(filename)
 
         files = self.by_path(self.scan_without_optional_parser())
@@ -62,8 +63,42 @@ class InspectAnimeTests(unittest.TestCase):
         self.assertEqual(files["01.cht.ass"]["subtitle"]["language_tag"], "zh-Hant")
         self.assertEqual(files["01.sub"]["type"], "subtitle")
         self.assertEqual(files["01.idx"]["type"], "subtitle")
+        self.assertEqual(files["01.sup"]["type"], "subtitle")
         self.assertEqual(files["01.sub"]["subtitle"]["match_key"], "01")
         self.assertEqual(files["01.idx"]["subtitle"]["match_key"], "01")
+
+    def test_hardlink_identity_is_reported(self) -> None:
+        if not hasattr(os, "link"):
+            self.skipTest("hard links are not available")
+
+        original = self.touch("original.mkv")
+        hardlink = self.root / "hardlink.mkv"
+        separate_copy = self.touch("separate-copy.mkv")
+        try:
+            os.link(original, hardlink)
+        except OSError as error:
+            self.skipTest(f"hard links unavailable on this filesystem: {error}")
+
+        files = self.by_path(self.scan_without_optional_parser())
+        first = files["original.mkv"]
+        linked = files["hardlink.mkv"]
+        copied = files["separate-copy.mkv"]
+        self.assertEqual(first["device"], linked["device"])
+        self.assertEqual(first["inode"], linked["inode"])
+        self.assertEqual(first["nlink"], 2)
+        self.assertEqual(linked["nlink"], 2)
+        self.assertEqual(copied["nlink"], 1)
+        self.assertNotEqual(first["inode"], copied["inode"])
+
+    def test_opaque_names_round_trip_through_json(self) -> None:
+        filename = "[Group] (A) 'single' \"double\" & $HOME ! `tick` - 空格\nnewline.mkv"
+        self.touch(filename)
+
+        result = self.scan_without_optional_parser()
+        decoded = json.loads(json.dumps(result, ensure_ascii=False))
+        files = self.by_path(decoded)
+        self.assertIn(filename, files)
+        self.assertEqual(files[filename]["type"], "video")
 
     def test_extended_subtitle_language_aliases(self) -> None:
         aliases = {

@@ -19,7 +19,7 @@ Anime 01.zh-Hant.ass
 
 常见双语标签可包含多种语言，例如 `简日`、`繁日`、`CHS&JPN`、`CHT&JPN`、`JPSC`、`JPTC`、`CHS_JP`。扫描器会保留 `raw_language_tag` 并提供 `language_tags` 线索；双语标签的具体含义可能因字幕组而异，Agent 应保留原标签并结合目录/字幕内容判断，不要把它压缩成单一语言。
 
-支持识别 `.ass`、`.ssa`、`.srt`、`.vtt`、`.sub` 等字幕扩展名。`.sub` 可能依赖同名 `.idx`，作为成对资源处理；不确定格式时用 `file` 或媒体工具检查。
+支持识别 `.ass`、`.ssa`、`.srt`、`.vtt`、`.sub`、`.sup` 等字幕扩展名。`.sub` 可能依赖同名 `.idx`，作为成对资源处理；`.sup` 常见于 Blu-ray PGS 图形字幕，核对后作为外挂字幕配对。对不确定格式用 `file` 或媒体工具检查。
 
 ## 配对顺序
 

@@ -31,7 +31,7 @@ Skill 位于仓库内的 `anime-information/` 目录（与 `SKILL.md` 中的 `na
 python3 anime-information/scripts/inspect_anime.py /path/to/anime
 ```
 
-脚本向标准输出生成 JSON，不修改文件。若环境已安装 `anitopy`，脚本会使用它解析常见发布名；未安装时会使用保守的轻量回退解析。解析结果仅供参考。
+脚本向标准输出生成 JSON，不修改文件，并为普通文件提供 `device` / `inode` / `nlink` 信息。若环境已安装 `anitopy`，脚本会使用它解析常见发布名；未安装时会使用保守的轻量回退解析。解析结果仅供参考。
 
 运行脚本测试：
 

@@ -18,7 +18,7 @@ VIDEO_EXTENSIONS = {
     ".mov", ".mp4", ".mpeg", ".mpg", ".ogv", ".rm", ".ts", ".vob",
     ".webm", ".wmv",
 }
-SUBTITLE_EXTENSIONS = {".ass", ".idx", ".smi", ".srt", ".ssa", ".sub", ".vtt"}
+SUBTITLE_EXTENSIONS = {".ass", ".idx", ".smi", ".srt", ".ssa", ".sub", ".sup", ".vtt"}
 FONT_EXTENSIONS = {".otf", ".ttc", ".ttf", ".woff", ".woff2"}
 IMAGE_EXTENSIONS = {
     ".avif", ".bmp", ".gif", ".heic", ".jpeg", ".jpg", ".png", ".webp",
@@ -257,9 +257,16 @@ def inspect(root: Path) -> dict[str, Any]:
         is_symlink = entry_kind == "symlink"
         try:
             details = path.lstat()
-            size: int | None = details.st_size if stat.S_ISREG(details.st_mode) else None
+            is_regular_file = stat.S_ISREG(details.st_mode)
+            size: int | None = details.st_size if is_regular_file else None
+            device: int | None = details.st_dev if is_regular_file else None
+            inode: int | None = details.st_ino if is_regular_file else None
+            nlink: int | None = details.st_nlink if is_regular_file else None
         except OSError as error:
             size = None
+            device = None
+            inode = None
+            nlink = None
             errors.append(
                 {
                     "path": str(path),
@@ -284,6 +291,9 @@ def inspect(root: Path) -> dict[str, Any]:
             "type": kind,
             "extension": extension,
             "size": size,
+            "device": device,
+            "inode": inode,
+            "nlink": nlink,
             "is_symlink": is_symlink,
             "role": role,
             "role_hint": role_hint,
